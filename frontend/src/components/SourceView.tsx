@@ -1,7 +1,7 @@
 import { SourceInfo } from '@/utils/api'
 import { colors } from '@/constants/colors'
 
-interface SourceViewProps {
+export interface SourceViewProps {
   sources: SourceInfo[]
 }
 
@@ -23,20 +23,15 @@ export default function SourceView({ sources }: SourceViewProps) {
                 Lines {source.start_line}-{source.end_line}
               </p>
             </div>
-            <span 
-              style={{ color: colors.primary }} 
-              className="text-sm font-medium"
-            >
+            <span style={{ color: colors.primary }} className="text-sm font-medium">
               {(source.similarity * 100).toFixed(1)}% match
             </span>
           </div>
-          <div 
+          <div
             style={{ color: colors.textSecondary, borderColor: colors.border }}
             className="mt-2 pt-2 border-t text-sm"
           >
-            <pre className="whitespace-pre-wrap font-sans">
-              {source.text}
-            </pre>
+            <pre className="whitespace-pre-wrap font-sans">{source.text}</pre>
           </div>
         </div>
       ))}

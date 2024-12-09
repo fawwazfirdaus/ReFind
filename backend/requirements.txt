@@ -6,9 +6,10 @@ python-multipart==0.0.6
 # Async Support
 aiofiles==23.2.1
 httpx==0.25.2
+aiohttp==3.9.1
 
 # PDF Processing
-beautifulsoup4==4.12.2
+beautifulsoup4[lxml]==4.12.2
 lxml==4.9.3
 
 # Vector Search

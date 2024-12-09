@@ -26,6 +26,7 @@ export interface Reference {
   year?: string
   abstract?: string
   venue?: string
+  status?: 'processed' | 'pending' | 'failed' | 'not_started'
 }
 
 export interface Paper {
@@ -35,6 +36,7 @@ export interface Paper {
   abstract?: string
   sections: Section[]
   references: Reference[]
+  sourceContent?: string
 }
 
 export interface TokenUsage {
@@ -60,6 +62,10 @@ export interface QueryResponse {
   }
 }
 
+export interface ReferenceStatus {
+  references: { [key: string]: 'processed' | 'pending' | 'failed' | 'not_started' }
+}
+
 export const uploadPDF = async (file: File): Promise<Paper> => {
   const formData = new FormData()
   formData.append('file', file)
@@ -81,9 +87,63 @@ export const getReferences = async (): Promise<Reference[]> => {
   return response.data || []
 }
 
+export const getReferencesStatus = async (): Promise<ReferenceStatus> => {
+  const response = await api.get('/references/status')
+  return response.data
+}
+
 export const submitQuery = async (query: string): Promise<QueryResponse> => {
   const response = await api.post('/query', { text: query })
   return response.data
+}
+
+// Reference API functions
+export async function searchReferences(query: string, limit: number = 5) {
+  const response = await fetch(`${API_BASE_URL}/references/search`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ query, limit }),
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to search references');
+  }
+  
+  return response.json();
+}
+
+export async function getQueueStatus() {
+  const response = await fetch(`${API_BASE_URL}/references/queue/status`);
+  
+  if (!response.ok) {
+    throw new Error('Failed to get queue status');
+  }
+  
+  return response.json();
+}
+
+export async function getReferenceContent(refId: string) {
+  const response = await fetch(`${API_BASE_URL}/references/${refId}/content`);
+  
+  if (!response.ok) {
+    throw new Error('Failed to get reference content');
+  }
+  
+  return response.json();
+}
+
+export async function processReference(refId: string) {
+  const response = await fetch(`${API_BASE_URL}/references/${refId}/process`, {
+    method: 'POST',
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to process reference');
+  }
+  
+  return response.json();
 }
 
 export default api 

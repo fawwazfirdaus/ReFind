@@ -8,7 +8,7 @@ import PaperDetails from '@/components/PaperDetails'
 import SectionList from '@/components/SectionList'
 import Modal from '@/components/Modal'
 import SourceView from '@/components/SourceView'
-import { uploadPDF, getReferences, submitQuery, Paper, TokenUsage, SourceInfo } from '@/utils/api'
+import { uploadPDF, submitQuery, Paper, TokenUsage, SourceInfo } from '@/utils/api'
 import { colors } from '@/constants/colors'
 
 interface QueryMetadata {
@@ -75,6 +75,8 @@ export default function Home() {
                 authors={paper.authors}
                 year={paper.year}
                 abstract={paper.abstract}
+                sections={paper.sections || []}
+                sourceContent={paper.sourceContent}
               />
               
               <div className="mt-4 space-x-4">

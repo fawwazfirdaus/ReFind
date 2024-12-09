@@ -1,24 +1,22 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
 import os
-import aiofiles
-import httpx
-from typing import List, Dict, Optional
 import json
 import logging
+from routers import papers, references
+from typing import List, Dict, Optional
+from pydantic import BaseModel
+import aiofiles
 
 # Set up logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 from config import settings
-from utils.grobid import GrobidClient
+from utils.grobid import get_grobid_client
 from utils.vector_store import VectorStore
 from utils.openai_client import get_embedding, get_completion, chunk_text
+from utils.reference_manager import ReferenceManager
 
 # Initialize FastAPI app
 app = FastAPI(title="ReFind API")
@@ -26,11 +24,15 @@ app = FastAPI(title="ReFind API")
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.BACKEND_CORS_ORIGINS.split(","),
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include routers
+app.include_router(papers)
+app.include_router(references)
 
 # Create necessary directories
 os.makedirs(settings.upload_dir_path, exist_ok=True)
@@ -38,8 +40,9 @@ os.makedirs(settings.metadata_dir_path, exist_ok=True)
 os.makedirs(settings.vector_dir_path, exist_ok=True)
 
 # Initialize components
-grobid_client = GrobidClient()
+grobid_client = get_grobid_client()  # Use the singleton getter
 vector_store = VectorStore()
+reference_manager = ReferenceManager()
 
 # Store current paper metadata and chunk counter
 current_paper: Optional[Dict] = None
@@ -125,8 +128,9 @@ async def process_paper_text(text: str, source: str, section: str = "Main Text")
 @app.post("/upload", response_model=Paper)
 async def upload_file(file: UploadFile = File(...)):
     """Upload and process a PDF file."""
-    global global_chunk_counter  # Reset counter for each new file
+    global current_paper, global_chunk_counter
     global_chunk_counter = 0
+    
     if not file.filename.endswith('.pdf'):
         raise HTTPException(status_code=400, detail="File must be a PDF")
     
@@ -141,12 +145,21 @@ async def upload_file(file: UploadFile = File(...)):
         
         logger.info("File saved successfully, processing with GROBID")
         
-        # Process with GROBID
-        metadata = grobid_client.process_pdf(file_path)
+        # Process with GROBID using the async client
+        grobid = get_grobid_client()
+        tei_content = await grobid.process_pdf(file_path)
+        if not tei_content:
+            raise HTTPException(status_code=400, detail="Failed to process PDF with GROBID")
+            
+        # Extract metadata and full text
+        metadata = await grobid.extract_metadata(tei_content)
+        full_text = await grobid.extract_full_text(tei_content)
         
-        # Save metadata
+        # Save metadata to file
         base_filename = os.path.splitext(file.filename)[0]
-        grobid_client.save_metadata(metadata, base_filename)
+        metadata_path = os.path.join(settings.metadata_dir_path, f"{base_filename}_metadata.json")
+        async with aiofiles.open(metadata_path, 'w') as f:
+            await f.write(json.dumps(metadata, indent=2))
         
         # Process sections
         logger.info("Processing paper sections")
@@ -158,7 +171,7 @@ async def upload_file(file: UploadFile = File(...)):
             )
         
         # Process abstract if available
-        if metadata["abstract"]:
+        if metadata.get("abstract"):
             logger.info("Processing abstract")
             await process_paper_text(
                 metadata["abstract"],
@@ -166,15 +179,19 @@ async def upload_file(file: UploadFile = File(...)):
                 "Abstract"
             )
         
+        # Process references
+        if metadata.get("references"):
+            logger.info(f"Processing {len(metadata['references'])} references")
+            ref_status = await reference_manager.process_references(metadata["references"])
+            logger.info(f"Reference processing status: {ref_status}")
+        
         # Save vector store
         vector_store.save(base_filename)
         logger.info("Vector store saved successfully")
         
         # Store current paper metadata
-        global current_paper
         current_paper = metadata
         
-        # Return paper metadata with proper typing
         return Paper(
             title=metadata["title"],
             authors=[Author(**author) for author in metadata["authors"]],
@@ -208,6 +225,29 @@ async def get_references():
     if not current_paper:
         return []
     return [Reference(**ref) for ref in current_paper.get("references", [])]
+
+@app.get("/references/status")
+async def get_references_status():
+    """Get the status of reference processing."""
+    if not current_paper or "references" not in current_paper:
+        raise HTTPException(status_code=404, detail="No paper has been uploaded yet")
+    
+    statuses = {}
+    for ref in current_paper["references"]:
+        ref_id = ref.get("doi") or ref.get("title")
+        if ref_id:
+            # Check if reference is processed
+            metadata = reference_manager.load_reference_metadata(ref_id)
+            if metadata:
+                statuses[ref_id] = "processed"
+            elif ref_id in [r.get("doi") or r.get("title") for r in reference_manager.pending_refs]:
+                statuses[ref_id] = "pending"
+            elif ref_id in [r.get("doi") or r.get("title") for r in reference_manager.failed_refs]:
+                statuses[ref_id] = "failed"
+            else:
+                statuses[ref_id] = "not_started"
+    
+    return {"references": statuses}
 
 @app.post("/query")
 async def process_query(query: Query):
