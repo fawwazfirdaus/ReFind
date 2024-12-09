@@ -22,9 +22,9 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-3. Create a `.env` file in the backend directory with your OpenAI API key:
-```
-OPENAI_API_KEY=your_api_key_here
+3. Copy the example environment file and update it with your settings:
+```bash
+cp .env.example .env
 ```
 
 4. Install and run GROBID (requires Docker Desktop):
