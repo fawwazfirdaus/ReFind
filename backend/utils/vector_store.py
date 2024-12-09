@@ -19,7 +19,7 @@ class VectorStore:
         self.index.add(vectors)
         self.metadata.extend(metadata_list)
         
-    def search(self, query_embedding: List[float], k: int = settings.top_k_results) -> List[Tuple[int, float, Dict]]:
+    def search(self, query_embedding: List[float], k: int = settings.TOP_K_RESULTS) -> List[Tuple[int, float, Dict]]:
         """
         Search for similar vectors and return their metadata.
         """
@@ -37,8 +37,8 @@ class VectorStore:
         """
         Save the index and metadata to disk.
         """
-        index_path = os.path.join(settings.vector_dir, f"{filename}.index")
-        metadata_path = os.path.join(settings.vector_dir, f"{filename}_metadata.json")
+        index_path = os.path.join(settings.vector_dir_path, f"{filename}.index")
+        metadata_path = os.path.join(settings.vector_dir_path, f"{filename}_metadata.json")
         
         faiss.write_index(self.index, index_path)
         with open(metadata_path, 'w') as f:
@@ -48,8 +48,8 @@ class VectorStore:
         """
         Load the index and metadata from disk.
         """
-        index_path = os.path.join(settings.vector_dir, f"{filename}.index")
-        metadata_path = os.path.join(settings.vector_dir, f"{filename}_metadata.json")
+        index_path = os.path.join(settings.vector_dir_path, f"{filename}.index")
+        metadata_path = os.path.join(settings.vector_dir_path, f"{filename}_metadata.json")
         
         if os.path.exists(index_path) and os.path.exists(metadata_path):
             self.index = faiss.read_index(index_path)

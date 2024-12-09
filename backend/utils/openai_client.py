@@ -3,14 +3,14 @@ from config import settings
 from typing import List, Dict
 import tiktoken
 
-client = OpenAI(api_key=settings.openai_api_key)
+client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
 def get_embedding(text: str) -> List[float]:
     """
     Get embeddings for a text using OpenAI's API.
     """
     response = client.embeddings.create(
-        model=settings.embedding_model,
+        model=settings.OPENAI_EMBEDDING_MODEL,
         input=text
     )
     return response.data[0].embedding
@@ -19,6 +19,8 @@ def get_completion(
     system_prompt: str,
     user_query: str,
     context: str,
+    temperature: float = settings.TEMPERATURE,
+    max_tokens: int = settings.MAX_TOKENS
 ) -> str:
     """
     Get completion from OpenAI's API using the chat model.
@@ -29,19 +31,19 @@ def get_completion(
     ]
     
     response = client.chat.completions.create(
-        model=settings.completion_model,
+        model=settings.OPENAI_COMPLETION_MODEL,
         messages=messages,
-        temperature=0.7,
-        max_tokens=1000
+        temperature=temperature,
+        max_tokens=max_tokens
     )
     
     return response.choices[0].message.content
 
-def chunk_text(text: str, chunk_size: int = settings.chunk_size, overlap: int = settings.chunk_overlap) -> List[str]:
+def chunk_text(text: str, chunk_size: int = settings.CHUNK_SIZE, overlap: int = settings.CHUNK_OVERLAP) -> List[str]:
     """
     Split text into chunks of specified size with overlap.
     """
-    encoding = tiktoken.encoding_for_model(settings.embedding_model)
+    encoding = tiktoken.encoding_for_model(settings.OPENAI_EMBEDDING_MODEL)
     tokens = encoding.encode(text)
     chunks = []
     

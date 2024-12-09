@@ -4,11 +4,13 @@ import { useState } from 'react'
 import FileUpload from '@/components/FileUpload'
 import QueryBox from '@/components/QueryBox'
 import ReferenceList from '@/components/ReferenceList'
-import { uploadPDF, getReferences, submitQuery, Reference } from '@/utils/api'
+import PaperDetails from '@/components/PaperDetails'
+import SectionList from '@/components/SectionList'
+import { uploadPDF, getReferences, submitQuery, Paper } from '@/utils/api'
 import { colors } from '@/constants/colors'
 
 export default function Home() {
-  const [references, setReferences] = useState<Reference[]>([])
+  const [paper, setPaper] = useState<Paper | null>(null)
   const [answer, setAnswer] = useState<string>('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string>('')
@@ -17,9 +19,8 @@ export default function Home() {
     try {
       setIsLoading(true)
       setError('')
-      await uploadPDF(file)
-      const refs = await getReferences()
-      setReferences(refs)
+      const paperData = await uploadPDF(file)
+      setPaper(paperData)
     } catch (err) {
       setError('Error processing PDF. Please try again.')
       console.error(err)
@@ -50,11 +51,28 @@ export default function Home() {
           <FileUpload onFileUpload={handleFileUpload} />
         </section>
 
-        {references.length > 0 && (
-          <section style={{ background: colors.background }}>
-            <h2 style={{ color: colors.text }} className="text-2xl font-bold mb-4">References</h2>
-            <ReferenceList references={references} />
-          </section>
+        {paper && (
+          <>
+            <section style={{ background: colors.background }}>
+              <h2 style={{ color: colors.text }} className="text-2xl font-bold mb-4">Paper Details</h2>
+              <PaperDetails
+                title={paper.title}
+                authors={paper.authors}
+                year={paper.year}
+                abstract={paper.abstract}
+              />
+            </section>
+
+            <section style={{ background: colors.background }}>
+              <h2 style={{ color: colors.text }} className="text-2xl font-bold mb-4">Sections</h2>
+              <SectionList sections={paper.sections} />
+            </section>
+
+            <section style={{ background: colors.background }}>
+              <h2 style={{ color: colors.text }} className="text-2xl font-bold mb-4">References</h2>
+              <ReferenceList references={paper.references} />
+            </section>
+          </>
         )}
 
         <section style={{ background: colors.background }}>

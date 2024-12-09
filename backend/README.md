@@ -30,8 +30,8 @@ cp .env.example .env
 4. Install and run GROBID (requires Docker Desktop):
 ```bash
 # Download and run GROBID using Docker
-docker pull grobid/grobid:0.8.1
-docker run -t --rm -p 8070:8070 grobid/grobid:0.8.1
+docker pull lfoppiano/grobid:0.8.1
+docker run --rm --init --ulimit core=0 -p 8070:8070 lfoppiano/grobid:0.8.1
 ```
 
 ## Running the Server
