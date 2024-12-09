@@ -41,6 +41,10 @@ os.makedirs(settings.vector_dir_path, exist_ok=True)
 grobid_client = GrobidClient()
 vector_store = VectorStore()
 
+# Store current paper metadata and chunk counter
+current_paper: Optional[Dict] = None
+global_chunk_counter: int = 0
+
 class Query(BaseModel):
     text: str
 
@@ -71,45 +75,58 @@ class Paper(BaseModel):
     sections: List[Section] = []
     references: List[Reference] = []
 
-# Store current paper metadata
-current_paper: Optional[Dict] = None
-
-async def process_paper_text(text: str, source: str) -> List[Dict]:
+async def process_paper_text(text: str, source: str, section: str = "Main Text") -> List[Dict]:
     """Process paper text into chunks and create metadata."""
-    logger.info(f"Processing text from source: {source}")
+    global global_chunk_counter
+    logger.info(f"Processing text from source: {source}, section: {section}")
     
-    # Get chunks with metadata
-    chunks = chunk_text(text, chunk_size=settings.CHUNK_SIZE, overlap=settings.CHUNK_OVERLAP)
-    chunk_metadata = []
-    
-    logger.info(f"Generating embeddings for {len(chunks)} chunks")
-    for chunk in chunks:
-        try:
-            embedding = get_embedding(chunk["text"])
-            metadata = {
-                "text": chunk["text"],
-                "source": source,
-                "chunk_index": chunk["chunk_index"],
-                "tokens": chunk["tokens"],
-                "start_char": chunk["start_char"],
-                "end_char": chunk["end_char"]
-            }
-            chunk_metadata.append(metadata)
-            vector_store.add_embeddings([embedding], [metadata])
-            
-            if chunk["chunk_index"] % 10 == 0:  # Log progress every 10 chunks
-                logger.info(f"Processed {chunk['chunk_index'] + 1}/{len(chunks)} chunks")
+    try:
+        # Get chunks with metadata
+        chunks = chunk_text(text, source_type=source, section_title=section)
+        chunk_metadata = []
+        
+        logger.info(f"Starting embedding generation for {len(chunks)} chunks")
+        for chunk_index, chunk in enumerate(chunks):
+            try:
+                logger.info(f"Generating embedding for chunk {global_chunk_counter + 1}")
+                logger.info(f"Chunk text length: {len(chunk['text'])} characters")
                 
-        except Exception as e:
-            logger.error(f"Error processing chunk {chunk['chunk_index']}: {str(e)}")
-            continue
-    
-    logger.info(f"Completed processing {len(chunk_metadata)} chunks from {source}")
-    return chunk_metadata
+                embedding = get_embedding(chunk["text"])
+                logger.info(f"Successfully generated embedding for chunk {global_chunk_counter + 1}")
+                
+                metadata = {
+                    "text": chunk["text"],
+                    "source": source,
+                    "section": chunk["section"],
+                    "chunk_index": global_chunk_counter,  # Use global counter instead of local
+                    "tokens": chunk["tokens"],
+                    "start_line": chunk["start_line"],
+                    "end_line": chunk["end_line"],
+                    "start_char": chunk["start_char"],
+                    "end_char": chunk["end_char"]
+                }
+                chunk_metadata.append(metadata)
+                vector_store.add_embeddings([embedding], [metadata])
+                
+                logger.info(f"Added chunk {global_chunk_counter + 1} to vector store")
+                global_chunk_counter += 1  # Increment global counter
+                
+            except Exception as e:
+                logger.error(f"Error processing chunk {global_chunk_counter + 1}: {str(e)}")
+                continue
+        
+        logger.info(f"Completed processing {len(chunk_metadata)} chunks from {source}")
+        return chunk_metadata
+        
+    except Exception as e:
+        logger.error(f"Error in process_paper_text: {str(e)}")
+        raise
 
 @app.post("/upload", response_model=Paper)
 async def upload_file(file: UploadFile = File(...)):
     """Upload and process a PDF file."""
+    global global_chunk_counter  # Reset counter for each new file
+    global_chunk_counter = 0
     if not file.filename.endswith('.pdf'):
         raise HTTPException(status_code=400, detail="File must be a PDF")
     
@@ -131,14 +148,23 @@ async def upload_file(file: UploadFile = File(...)):
         base_filename = os.path.splitext(file.filename)[0]
         grobid_client.save_metadata(metadata, base_filename)
         
-        logger.info("Processing main paper text")
-        # Process main paper text
-        await process_paper_text(metadata["body_text"], f"main_paper:{base_filename}")
+        # Process sections
+        logger.info("Processing paper sections")
+        for section in metadata.get("sections", []):
+            await process_paper_text(
+                section["content"],
+                f"section:{base_filename}",
+                section["title"]
+            )
         
         # Process abstract if available
         if metadata["abstract"]:
             logger.info("Processing abstract")
-            await process_paper_text(metadata["abstract"], f"abstract:{base_filename}")
+            await process_paper_text(
+                metadata["abstract"],
+                f"abstract:{base_filename}",
+                "Abstract"
+            )
         
         # Save vector store
         vector_store.save(base_filename)
@@ -198,15 +224,28 @@ async def process_query(query: Query):
         
         # Prepare context from search results
         context_chunks = []
+        chunk_sources = []
         total_tokens = 0
         
-        for score, _, metadata in results:
+        for distance, _, metadata in results:
+            # Format source information
+            source_info = {
+                "text": metadata["text"],
+                "section": metadata["section"],
+                "start_line": metadata["start_line"],
+                "end_line": metadata["end_line"],
+                "similarity": float(1 - distance)  # Convert distance to similarity score
+            }
+            chunk_sources.append(source_info)
+            
             # Log each chunk's relevance
-            logger.info(f"Chunk {metadata['chunk_index']} (similarity: {1-score:.4f}):")
-            logger.info(f"- Source: {metadata['source']}")
+            logger.info(f"Chunk from {metadata['section']} (similarity: {1-distance:.4f}):")
+            logger.info(f"- Lines {metadata['start_line']}-{metadata['end_line']}")
             logger.info(f"- Text preview: {metadata['text'][:100]}...")
             
-            context_chunks.append(f"Source: {metadata['source']}\n{metadata['text']}")
+            context_chunks.append(
+                f"[From {metadata['section']}, Lines {metadata['start_line']}-{metadata['end_line']}]:\n{metadata['text']}"
+            )
             total_tokens += metadata.get('tokens', len(metadata['text'].split()))
         
         context = "\n\n".join(context_chunks)
@@ -214,8 +253,8 @@ async def process_query(query: Query):
         
         # Get completion from LLM
         system_prompt = """You are a helpful research assistant. Answer the question based on the provided context. 
-        If you cannot find the answer in the context, say so. Always cite the source of information in your answer.
-        When citing sources, use the format [source_name] at the end of the relevant sentence or claim."""
+        Always cite the source information provided in square brackets at the start of each context chunk.
+        Format your citations like this: [Section Name, Lines X-Y]."""
         
         answer, usage = get_completion(
             system_prompt, 
@@ -237,7 +276,7 @@ async def process_query(query: Query):
             "metadata": {
                 "chunks_used": len(results),
                 "token_usage": usage,
-                "sources": list(set(metadata["source"] for _, _, metadata in results))
+                "sources": chunk_sources
             }
         }
         

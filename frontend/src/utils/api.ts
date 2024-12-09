@@ -43,12 +43,20 @@ export interface TokenUsage {
   total_tokens: number
 }
 
+export interface SourceInfo {
+  text: string
+  section: string
+  start_line: number
+  end_line: number
+  similarity: number
+}
+
 export interface QueryResponse {
   answer: string
   metadata: {
     chunks_used: number
     token_usage: TokenUsage
-    sources: string[]
+    sources: SourceInfo[]
   }
 }
 

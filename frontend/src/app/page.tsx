@@ -7,13 +7,14 @@ import ReferenceList from '@/components/ReferenceList'
 import PaperDetails from '@/components/PaperDetails'
 import SectionList from '@/components/SectionList'
 import Modal from '@/components/Modal'
-import { uploadPDF, getReferences, submitQuery, Paper, TokenUsage } from '@/utils/api'
+import SourceView from '@/components/SourceView'
+import { uploadPDF, getReferences, submitQuery, Paper, TokenUsage, SourceInfo } from '@/utils/api'
 import { colors } from '@/constants/colors'
 
 interface QueryMetadata {
   chunks_used: number
   token_usage: TokenUsage
-  sources: string[]
+  sources: SourceInfo[]
 }
 
 export default function Home() {
@@ -138,15 +139,22 @@ export default function Home() {
                 onClose={() => setShowQueryDetails(false)}
                 title="Query Details"
               >
-                <div style={{ color: colors.textSecondary }} className="space-y-2">
-                  <p>Chunks used: {queryMetadata?.chunks_used}</p>
-                  <p>Sources: {queryMetadata?.sources.join(', ')}</p>
-                  <p className="font-semibold mt-4">Token Usage:</p>
-                  <ul className="list-disc list-inside pl-4">
-                    <li>Prompt: {queryMetadata?.token_usage.prompt_tokens}</li>
-                    <li>Completion: {queryMetadata?.token_usage.completion_tokens}</li>
-                    <li>Total: {queryMetadata?.token_usage.total_tokens}</li>
-                  </ul>
+                <div className="space-y-6">
+                  <div style={{ color: colors.textSecondary }} className="space-y-2">
+                    <h4 style={{ color: colors.text }} className="text-lg font-semibold">Statistics</h4>
+                    <p>Chunks used: {queryMetadata?.chunks_used}</p>
+                    <p className="font-medium mt-4">Token Usage:</p>
+                    <ul className="list-disc list-inside pl-4">
+                      <li>Prompt: {queryMetadata?.token_usage.prompt_tokens}</li>
+                      <li>Completion: {queryMetadata?.token_usage.completion_tokens}</li>
+                      <li>Total: {queryMetadata?.token_usage.total_tokens}</li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h4 style={{ color: colors.text }} className="text-lg font-semibold mb-4">Source Chunks</h4>
+                    {queryMetadata?.sources && <SourceView sources={queryMetadata.sources} />}
+                  </div>
                 </div>
               </Modal>
             </div>

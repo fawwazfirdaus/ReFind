@@ -19,17 +19,21 @@ class VectorStore:
         self.index.add(vectors)
         self.metadata.extend(metadata_list)
         
-    def search(self, query_embedding: List[float], k: int = settings.TOP_K_RESULTS) -> List[Tuple[int, float, Dict]]:
+    def search(self, query_embedding: List[float], k: int = settings.TOP_K_RESULTS) -> List[Tuple[float, int, Dict]]:
         """
         Search for similar vectors and return their metadata.
+        Returns a list of tuples: (distance, index, metadata)
         """
         query_vector = np.array([query_embedding]).astype('float32')
         distances, indices = self.index.search(query_vector, k)
         
         results = []
-        for i, (dist, idx) in enumerate(zip(distances[0], indices[0])):
+        for dist, idx in zip(distances[0], indices[0]):
             if idx < len(self.metadata):
-                results.append((idx, float(dist), self.metadata[idx]))
+                # Convert numpy types to Python native types
+                distance = float(dist)
+                index = int(idx)
+                results.append((distance, index, self.metadata[index]))
                 
         return results
     
