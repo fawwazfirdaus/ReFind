@@ -5,6 +5,7 @@ import FileUpload from '@/components/FileUpload'
 import QueryBox from '@/components/QueryBox'
 import ReferenceList from '@/components/ReferenceList'
 import { uploadPDF, getReferences, submitQuery, Reference } from '@/utils/api'
+import { colors } from '@/constants/colors'
 
 export default function Home() {
   const [references, setReferences] = useState<Reference[]>([])
@@ -42,40 +43,48 @@ export default function Home() {
   }
 
   return (
-    <div className="space-y-8">
-      <section>
-        <h2 className="text-2xl font-bold mb-4">Upload Paper</h2>
-        <FileUpload onFileUpload={handleFileUpload} />
-      </section>
-
-      {references.length > 0 && (
-        <section>
-          <h2 className="text-2xl font-bold mb-4">References</h2>
-          <ReferenceList references={references} />
+    <div style={{ background: colors.background, minHeight: '100vh' }}>
+      <div className="space-y-8 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" style={{ background: colors.background }}>
+        <section style={{ background: colors.background }}>
+          <h2 style={{ color: colors.text }} className="text-2xl font-bold mb-4">Upload Paper</h2>
+          <FileUpload onFileUpload={handleFileUpload} />
         </section>
-      )}
 
-      <section>
-        <h2 className="text-2xl font-bold mb-4">Ask Questions</h2>
-        <QueryBox onSubmit={handleQuery} isLoading={isLoading} />
-        {answer && (
-          <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-            <p className="text-gray-700">{answer}</p>
+        {references.length > 0 && (
+          <section style={{ background: colors.background }}>
+            <h2 style={{ color: colors.text }} className="text-2xl font-bold mb-4">References</h2>
+            <ReferenceList references={references} />
+          </section>
+        )}
+
+        <section style={{ background: colors.background }}>
+          <h2 style={{ color: colors.text }} className="text-2xl font-bold mb-4">Ask Questions</h2>
+          <QueryBox onSubmit={handleQuery} isLoading={isLoading} />
+          {answer && (
+            <div style={{ background: colors.surface }} className="mt-4 p-4 rounded-lg">
+              <p style={{ color: colors.text }}>{answer}</p>
+            </div>
+          )}
+        </section>
+
+        {error && (
+          <div style={{ background: `${colors.error}10`, color: colors.error }} className="p-4 rounded-lg">
+            {error}
           </div>
         )}
-      </section>
 
-      {error && (
-        <div className="p-4 bg-red-50 text-red-700 rounded-lg">
-          {error}
-        </div>
-      )}
-
-      {isLoading && (
-        <div className="text-center py-4">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-gray-300 border-t-blue-600"></div>
-        </div>
-      )}
+        {isLoading && (
+          <div className="text-center py-4">
+            <div 
+              className="inline-block animate-spin rounded-full h-8 w-8 border-4" 
+              style={{ 
+                borderColor: colors.border,
+                borderTopColor: colors.primary 
+              }}
+            />
+          </div>
+        )}
+      </div>
     </div>
   )
 }

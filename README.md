@@ -15,7 +15,7 @@ ReFind is an intelligent academic paper reference management system that allows 
 
 - **Frontend**: Next.js 14, TypeScript, Tailwind CSS
 - **Backend**: FastAPI, GROBID, FAISS
-- **AI/ML**: OpenAI API (GPT-3.5/4, Ada Embeddings)
+- **AI/ML**: OpenAI API (GPT-3.5/4o-mini, Ada Embeddings)
 - **Infrastructure**: Docker (for GROBID)
 
 ## Prerequisites

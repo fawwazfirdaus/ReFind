@@ -1,5 +1,6 @@
 import { useState, FormEvent } from 'react'
 import { PaperAirplaneIcon } from '@heroicons/react/24/solid'
+import { colors } from '@/constants/colors'
 
 interface QueryBoxProps {
   onSubmit: (query: string) => void
@@ -24,19 +25,24 @@ export default function QueryBox({ onSubmit, isLoading = false }: QueryBoxProps)
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Ask a question about the paper..."
-        className="flex-1 p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+        style={{
+          background: colors.background,
+          borderColor: colors.border,
+          color: colors.text,
+        }}
+        className="flex-1 p-2 border rounded-lg focus:outline-none focus:ring-2"
         disabled={isLoading}
       />
       <button
         type="submit"
         disabled={!query.trim() || isLoading}
-        className={`p-2 rounded-lg ${
-          !query.trim() || isLoading
-            ? 'bg-gray-300 cursor-not-allowed'
-            : 'bg-blue-500 hover:bg-blue-600'
-        }`}
+        style={{
+          backgroundColor: !query.trim() || isLoading ? colors.border : colors.primary,
+          color: !query.trim() || isLoading ? colors.textSecondary : colors.background,
+        }}
+        className="p-2 rounded-lg"
       >
-        <PaperAirplaneIcon className="h-5 w-5 text-white" />
+        <PaperAirplaneIcon className="h-5 w-5" />
       </button>
     </form>
   )

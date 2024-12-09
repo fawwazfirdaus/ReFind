@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     # OpenAI settings
     openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
     embedding_model: str = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-ada-002")
-    completion_model: str = os.getenv("OPENAI_COMPLETION_MODEL", "gpt-3.5-turbo")
+    completion_model: str = os.getenv("OPENAI_COMPLETION_MODEL", "gpt-4o-mini")
     
     # GROBID settings
     grobid_url: str = os.getenv("GROBID_URL", "http://localhost:8070")
