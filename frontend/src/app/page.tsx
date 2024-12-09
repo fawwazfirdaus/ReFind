@@ -6,14 +6,27 @@ import QueryBox from '@/components/QueryBox'
 import ReferenceList from '@/components/ReferenceList'
 import PaperDetails from '@/components/PaperDetails'
 import SectionList from '@/components/SectionList'
-import { uploadPDF, getReferences, submitQuery, Paper } from '@/utils/api'
+import Modal from '@/components/Modal'
+import { uploadPDF, getReferences, submitQuery, Paper, TokenUsage } from '@/utils/api'
 import { colors } from '@/constants/colors'
+
+interface QueryMetadata {
+  chunks_used: number
+  token_usage: TokenUsage
+  sources: string[]
+}
 
 export default function Home() {
   const [paper, setPaper] = useState<Paper | null>(null)
   const [answer, setAnswer] = useState<string>('')
+  const [queryMetadata, setQueryMetadata] = useState<QueryMetadata | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string>('')
+  
+  // Modal states
+  const [showSections, setShowSections] = useState(false)
+  const [showReferences, setShowReferences] = useState(false)
+  const [showQueryDetails, setShowQueryDetails] = useState(false)
 
   const handleFileUpload = async (file: File) => {
     try {
@@ -35,6 +48,7 @@ export default function Home() {
       setError('')
       const response = await submitQuery(query)
       setAnswer(response.answer)
+      setQueryMetadata(response.metadata)
     } catch (err) {
       setError('Error processing query. Please try again.')
       console.error(err)
@@ -61,17 +75,42 @@ export default function Home() {
                 year={paper.year}
                 abstract={paper.abstract}
               />
+              
+              <div className="mt-4 space-x-4">
+                <button
+                  onClick={() => setShowSections(true)}
+                  style={{ background: colors.primary, color: colors.text }}
+                  className="px-4 py-2 rounded-lg hover:opacity-90"
+                >
+                  View Sections
+                </button>
+                <button
+                  onClick={() => setShowReferences(true)}
+                  style={{ background: colors.primary, color: colors.text }}
+                  className="px-4 py-2 rounded-lg hover:opacity-90"
+                >
+                  View References
+                </button>
+              </div>
             </section>
 
-            <section style={{ background: colors.background }}>
-              <h2 style={{ color: colors.text }} className="text-2xl font-bold mb-4">Sections</h2>
+            {/* Sections Modal */}
+            <Modal
+              isOpen={showSections}
+              onClose={() => setShowSections(false)}
+              title="Paper Sections"
+            >
               <SectionList sections={paper.sections} />
-            </section>
+            </Modal>
 
-            <section style={{ background: colors.background }}>
-              <h2 style={{ color: colors.text }} className="text-2xl font-bold mb-4">References</h2>
+            {/* References Modal */}
+            <Modal
+              isOpen={showReferences}
+              onClose={() => setShowReferences(false)}
+              title="References"
+            >
               <ReferenceList references={paper.references} />
-            </section>
+            </Modal>
           </>
         )}
 
@@ -79,8 +118,37 @@ export default function Home() {
           <h2 style={{ color: colors.text }} className="text-2xl font-bold mb-4">Ask Questions</h2>
           <QueryBox onSubmit={handleQuery} isLoading={isLoading} />
           {answer && (
-            <div style={{ background: colors.surface }} className="mt-4 p-4 rounded-lg">
-              <p style={{ color: colors.text }}>{answer}</p>
+            <div className="space-y-4">
+              <div style={{ background: colors.surface }} className="p-4 rounded-lg">
+                <p style={{ color: colors.text }}>{answer}</p>
+                {queryMetadata && (
+                  <button
+                    onClick={() => setShowQueryDetails(true)}
+                    style={{ color: colors.primary }}
+                    className="mt-2 text-sm hover:underline"
+                  >
+                    View Query Details
+                  </button>
+                )}
+              </div>
+
+              {/* Query Details Modal */}
+              <Modal
+                isOpen={showQueryDetails}
+                onClose={() => setShowQueryDetails(false)}
+                title="Query Details"
+              >
+                <div style={{ color: colors.textSecondary }} className="space-y-2">
+                  <p>Chunks used: {queryMetadata?.chunks_used}</p>
+                  <p>Sources: {queryMetadata?.sources.join(', ')}</p>
+                  <p className="font-semibold mt-4">Token Usage:</p>
+                  <ul className="list-disc list-inside pl-4">
+                    <li>Prompt: {queryMetadata?.token_usage.prompt_tokens}</li>
+                    <li>Completion: {queryMetadata?.token_usage.completion_tokens}</li>
+                    <li>Total: {queryMetadata?.token_usage.total_tokens}</li>
+                  </ul>
+                </div>
+              </Modal>
             </div>
           )}
         </section>

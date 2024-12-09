@@ -37,8 +37,19 @@ export interface Paper {
   references: Reference[]
 }
 
+export interface TokenUsage {
+  prompt_tokens: number
+  completion_tokens: number
+  total_tokens: number
+}
+
 export interface QueryResponse {
   answer: string
+  metadata: {
+    chunks_used: number
+    token_usage: TokenUsage
+    sources: string[]
+  }
 }
 
 export const uploadPDF = async (file: File): Promise<Paper> => {
